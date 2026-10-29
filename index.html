@@ -1,17 +1,290 @@
-const colours = [
-        "#ea75aa", // Pink
-        "#b89bea", // Purple
-        "#83c9f4", // Blue
-        "#97dba5", // Green
-        "#f7d774", // Yellow
-        "#f5a578"  // Peach
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Squish the Clay</title>
+
+    <style>
+        body {
+            font-family: "Comic Sans MS", "Chalkboard SE", cursive;
+            text-align: center;
+            background-color: #fff0be;
+            color: #66334b;
+            margin: 0;
+            padding: 25px;
+        }
+
+        button {
+            background-color: #b64879;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        #table {
+            position: relative;
+            width: 300px;
+            max-width: 100%;
+            height: 280px;
+            margin: 25px auto;
+            background-color: #f8e4cf;
+            border-bottom: 20px solid #bd8b68;
+            border-radius: 15px 15px 0 0;
+            overflow: hidden;
+        }
+
+        #clay {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 130px;
+            height: 150px;
+            transform: translateX(-50%);
+            background-color: #ea75aa;
+            border-radius: 48% 52% 35% 40%;
+            box-shadow:
+                inset -12px -12px 0 rgba(150, 40, 90, 0.15),
+                inset 10px 10px 0 rgba(255, 255, 255, 0.18);
+        }
+
+        #webcam-container {
+            margin-top: 20px;
+        }
+
+        #webcam-container canvas {
+            border-radius: 12px;
+        }
+
+        #label-container {
+            margin-top: 10px;
+            line-height: 1.8;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Squish the Clay</h1>
+
+    <p>Show your squishing gesture to flatten the clay!</p>
+
+    <button id="start-button" type="button" onclick="init()">
+        Start
+    </button>
+
+    <button type="button" onclick="resetClay()">
+        Reset clay
+    </button>
+
+    <p id="status" role="status">Click Start to begin.</p>
+
+    <div id="table">
+        <div id="dough"></div>
+    </div>
+
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+    <script>
+        const MODEL_URL = "./my_model/";
+
+        // These must match your model's class names exactly.
+        const SQUISH_CLASS = "squished";
+        const STILL_CLASS = "still";
+
+        let model;
+        let webcam;
+        let labelContainer;
+
+        let squishAmount = 0;
+        let squishDetected = false;
+        let stillDetected = false;
+        let previousTime = null;
+        let running = false;
+
+        const clay = document.getElementById("clay");
+        const statusText = document.getElementById("status");
+        const startButton = document.getElementById("start-button");
+
+        function updateClay() {
+            const height = 150 - squishAmount * 105;
+            const width = 130 + squishAmount * 140;
+
+            clay.style.height = height + "px";
+            clay.style.width = width + "px";
+        }
+
+        function resetClay() {
+            squishAmount = 0;
+            updateClay();
+
+            const colours = [
+        "#ea75aa", 
+        "#b89bea", 
+        "#83c9f4", 
+        "#97dba5", 
+        "#f7d774", 
+        "#f5a578" 
     ];
 
     const randomColour = Math.floor(Math.random() * colours.length);
-    dough.style.backgroundColor = colours[randomColour];
+    clay.style.backgroundColor = colours[randomColour];
 
     if (running) {
-        statusText.textContent = "Dough reset! Try squishing again.";
+        statusText.textContent = "Clay reset! Try squishing again.";
     } else {
         statusText.textContent = "Click Start to begin.";
     }
+}
+
+        async function init() {
+            startButton.disabled = true;
+            statusText.textContent = "Loading the model and camera...";
+
+            try {
+                const modelURL = MODEL_URL + "model.json";
+                const metadataURL = MODEL_URL + "metadata.json";
+
+                model = await tmImage.load(modelURL, metadataURL);
+
+                const classes = model.getClassLabels();
+
+                if (
+                    !classes.includes(SQUISH_CLASS) ||
+                    !classes.includes(STILL_CLASS)
+                ) {
+                    throw new Error(
+                        "Your model needs classes named " +
+                        SQUISH_CLASS + " and " + STILL_CLASS +
+                        ". Update the class names in the code if needed."
+                    );
+                }
+
+                webcam = new tmImage.Webcam(200, 200, true);
+
+                await webcam.setup();
+                await webcam.play();
+
+                document.getElementById("webcam-container")
+                    .replaceChildren(webcam.canvas);
+
+                labelContainer = document.getElementById("label-container");
+                labelContainer.replaceChildren();
+
+                for (let i = 0; i < model.getTotalClasses(); i++) {
+                    labelContainer.appendChild(document.createElement("div"));
+                }
+
+                startButton.textContent = "Camera running";
+                previousTime = null;
+                running = true;
+
+                window.requestAnimationFrame(loop);
+            } catch (error) {
+                handleError(error);
+            }
+        }
+
+        async function loop(time) {
+            try {
+                webcam.update();
+                await predict();
+
+                let seconds = 0;
+
+                if (previousTime !== null) {
+                    seconds = Math.min((time - previousTime) / 1000, 0.1);
+                }
+
+                previousTime = time;
+
+                if (squishDetected && squishAmount < 1) {
+                    squishAmount = Math.min(
+                        1,
+                        squishAmount + 0.15 * seconds
+                    );
+
+                    updateClay();
+                }
+
+                if (squishAmount >= 1) {
+                    statusText.textContent =
+                        "Your clay is fully squished! Click Reset clay to try again.";
+                } else if (squishDetected) {
+                    statusText.textContent =
+                        "Squishing! The clay is getting flatter.";
+                } else if (stillDetected) {
+                    statusText.textContent =
+                        "Still: the clay is holding its shape.";
+                } else {
+                    statusText.textContent =
+                        "Unsure: show your squishing or still gesture more clearly.";
+                }
+
+                window.requestAnimationFrame(loop);
+            } catch (error) {
+                handleError(error);
+            }
+        }
+
+        async function predict() {
+            const predictions = await model.predict(webcam.canvas);
+
+            squishDetected = false;
+            stillDetected = false;
+
+            for (let i = 0; i < predictions.length; i++) {
+                const result = predictions[i];
+
+                labelContainer.children[i].textContent =
+                    result.className + ": " +
+                    (result.probability * 100).toFixed(0) + "%";
+
+                if (
+                    result.className === SQUISH_CLASS &&
+                    result.probability >= 0.8
+                ) {
+                    squishDetected = true;
+                }
+
+                if (
+                    result.className === STILL_CLASS &&
+                    result.probability >= 0.8
+                ) {
+                    stillDetected = true;
+                }
+            }
+        }
+
+        function handleError(error) {
+            running = false;
+
+            if (webcam) {
+                webcam.stop();
+            }
+
+            previousTime = null;
+            squishDetected = false;
+            stillDetected = false;
+
+            statusText.textContent = "Could not continue: " + error.message;
+            startButton.disabled = false;
+            startButton.textContent = "Try again";
+
+            console.error(error);
+        }
+    </script>
+</body>
+</html>
