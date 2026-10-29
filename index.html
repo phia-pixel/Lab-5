@@ -3,19 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Squish the Clay</title>
+    <title>Squish the Play-Dough</title>
 
     <style>
         body {
             font-family: "Comic Sans MS", "Chalkboard SE", cursive;
             text-align: center;
-            background-color: #fff0be;
+            background-color: #fff0f5;
             color: #66334b;
             margin: 0;
             padding: 25px;
         }
 
+        h1 {
+            font-size: 42px;
+            color: #b64879;
+        }
+
         button {
+            font-family: inherit;
             background-color: #b64879;
             color: white;
             border: none;
@@ -23,7 +29,6 @@
             padding: 12px 24px;
             font-size: 16px;
             cursor: pointer;
-            font-family: inherit;
         }
 
         button:disabled {
@@ -43,7 +48,7 @@
             overflow: hidden;
         }
 
-        #clay {
+        #dough {
             position: absolute;
             bottom: 0;
             left: 50%;
@@ -73,16 +78,16 @@
 </head>
 
 <body>
-    <h1>Squish the Clay</h1>
+    <h1>Squish the Play-Dough</h1>
 
-    <p>Show your squishing gesture to flatten the clay!</p>
+    <p>Show your squishing gesture to flatten the play-dough!</p>
 
     <button id="start-button" type="button" onclick="init()">
         Start
     </button>
 
-    <button type="button" onclick="resetClay()">
-        Reset clay
+    <button type="button" onclick="resetDough()">
+        Reset dough
     </button>
 
     <p id="status" role="status">Click Start to begin.</p>
@@ -99,8 +104,6 @@
 
     <script>
         const MODEL_URL = "./my_model/";
-
-        // These must match your model's class names exactly.
         const SQUISH_CLASS = "squished";
         const STILL_CLASS = "still";
 
@@ -114,40 +117,40 @@
         let previousTime = null;
         let running = false;
 
-        const clay = document.getElementById("clay");
+        const dough = document.getElementById("dough");
         const statusText = document.getElementById("status");
         const startButton = document.getElementById("start-button");
 
-        function updateClay() {
+        function updateDough() {
             const height = 150 - squishAmount * 105;
             const width = 130 + squishAmount * 140;
 
-            clay.style.height = height + "px";
-            clay.style.width = width + "px";
+            dough.style.height = height + "px";
+            dough.style.width = width + "px";
         }
 
-        function resetClay() {
+        function resetDough() {
             squishAmount = 0;
-            updateClay();
+            updateDough();
 
             const colours = [
-        "#ea75aa", 
-        "#b89bea", 
-        "#83c9f4", 
-        "#97dba5", 
-        "#f7d774", 
-        "#f5a578" 
-    ];
+                "#ea75aa",
+                "#b89bea",
+                "#83c9f4",
+                "#97dba5",
+                "#f7d774",
+                "#f5a578"
+            ];
 
-    const randomColour = Math.floor(Math.random() * colours.length);
-    clay.style.backgroundColor = colours[randomColour];
+            const randomColour = Math.floor(Math.random() * colours.length);
+            dough.style.backgroundColor = colours[randomColour];
 
-    if (running) {
-        statusText.textContent = "Clay reset! Try squishing again.";
-    } else {
-        statusText.textContent = "Click Start to begin.";
-    }
-}
+            if (running) {
+                statusText.textContent = "Dough reset! Try squishing again.";
+            } else {
+                statusText.textContent = "Click Start to begin.";
+            }
+        }
 
         async function init() {
             startButton.disabled = true;
@@ -216,18 +219,18 @@
                         squishAmount + 0.15 * seconds
                     );
 
-                    updateClay();
+                    updateDough();
                 }
 
                 if (squishAmount >= 1) {
                     statusText.textContent =
-                        "Your clay is fully squished! Click Reset clay to try again.";
+                        "Your play-dough is fully squished! Click Reset dough to try again.";
                 } else if (squishDetected) {
                     statusText.textContent =
-                        "Squishing! The clay is getting flatter.";
+                        "Squishing! The play-dough is getting flatter.";
                 } else if (stillDetected) {
                     statusText.textContent =
-                        "Still: the clay is holding its shape.";
+                        "Still: the play-dough is holding its shape.";
                 } else {
                     statusText.textContent =
                         "Unsure: show your squishing or still gesture more clearly.";
